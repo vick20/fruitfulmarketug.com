@@ -8,7 +8,7 @@ export default function StickySearchBar() {
   const { count, isReady, uiOpen} = useCart();
 
   return (
-    <div className="flex flex-row gap-2 w-full sticky top-0 z-50 text-background px-2 pb-2 pt-3 shadow-md bg-primary backdrop-blur-sm bg-opacity-80">
+    <div className="flex flex-row items-center gap-2 w-full md:mx-auto md:max-w-7xl md:px-4">
 
       <Searchbar />
 

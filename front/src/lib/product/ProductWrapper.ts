@@ -107,13 +107,15 @@ export function toProductCardData(
   };
 }
 
-export function toCartitem(item:ProductCardData):CartItem{
+export function toCartitem(item: ProductCardData): CartItem {
+  const firstVariant = item.variants[0];
+  const firstImage = item.images[0];
   return {
-  variantId:item.variants[0].id.toString(),
-  productId: item.images[0].product_id.toString(),
-  name: item.name,
-  image: item.images[0].url,
-  unitPrice: item.variants[0].price,
-  quantity: 0,
-  }
+    variantId: String(firstVariant?.id ?? item.id),
+    productId: String(firstImage?.product_id ?? item.id),
+    name: item.name,
+    image: firstImage?.url ?? "",
+    unitPrice: firstVariant?.price ?? item.base_price,
+    quantity: 0,
+  };
 }

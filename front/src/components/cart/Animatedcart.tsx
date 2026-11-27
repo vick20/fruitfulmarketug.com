@@ -65,6 +65,8 @@ export interface AnimatedCartCounterProps {
   pulseClassName?: string;
   /** Accessible label prefix (default: "Cart items") */
   ariaLabel?: string;
+  /** Optional number formatter (e.g. locale separators for currency totals) */
+  formatValue?: (value: number) => string;
 }
 
 const digitVariants: Variants = {
@@ -93,27 +95,25 @@ export function AnimatedCartCounter({
   bounceScale = SPRING_PRESETS.bouncy.bounceScale,
   showPulse = true,
   className = '',
-  pulseClassName = 'border-blue-600/45',
   ariaLabel = 'Cart count',
+  formatValue,
 }: AnimatedCartCounterProps) {
   const prefersReducedMotion = useReducedMotion();
-  const safeValue = Math.max(0, Math.floor(value));
+  const safeValue = Math.max(0, Math.round(value * 100) / 100);
 
-  const [history, setHistory] = useState<{ current: number; prev: number }>({
-    current: safeValue,
-    prev: safeValue,
-  });
+  const prevValueRef = useRef(safeValue);
+  const [direction, setDirection] = useState(1);
 
-  if (safeValue !== history.current) {
-    setHistory({ current: safeValue, prev: history.current });
-  }
-
-  const direction = history.current >= history.prev ? 1 : -1;
+  useEffect(() => {
+    if (safeValue !== prevValueRef.current) {
+      setDirection(safeValue >= prevValueRef.current ? 1 : -1);
+      prevValueRef.current = safeValue;
+    }
+  }, [safeValue]);
 
   const bounceControls = useAnimationControls();
   const hasMountedRef = useRef(false);
   const animRunRef = useRef(0);
-  const [pulseTick, setPulseTick] = useState(0);
 
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -123,10 +123,6 @@ export function AnimatedCartCounter({
 
     if (prefersReducedMotion) {
       return;
-    }
-
-    if (direction > 0 && showPulse) {
-      setPulseTick((t) => t + 1);
     }
 
     const runId = ++animRunRef.current;
@@ -156,48 +152,45 @@ export function AnimatedCartCounter({
     void triggerBounce();
   }, [safeValue, direction, bounceScale, stiffness, damping, mass, showPulse, prefersReducedMotion, bounceControls]);
 
-  const digits = safeValue.toString().split('');
+  const formatted = formatValue ? formatValue(safeValue) : Math.floor(safeValue).toString();
+  const chars = formatted.split('');
 
   return (
     <motion.span
       animate={bounceControls}
       initial={false}
       aria-live="polite"
-      aria-label={`${ariaLabel}: ${safeValue}`}
+      aria-label={`${ariaLabel}: ${formatted}`}
       className={`relative inline-flex items-center justify-center tabular-nums select-none ${className}`}
     >
       {/* Expanding halo ring on increment */}
-      {showPulse && !prefersReducedMotion && (
-        <AnimatePresence>
-          {pulseTick > 0 && (
-            <motion.span
-              key={pulseTick}
-              aria-hidden="true"
-              initial={{ scale: 0.85, opacity: 0.65 }}
-              animate={{ scale: 1.75, opacity: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              className={`pointer-events-none absolute inset-0 rounded-full border-2 ${pulseClassName}`}
-            />
-          )}
-        </AnimatePresence>
-      )}
+
 
       {/* Per-place-value digit columns so unchanged leading digits remain rock-solid */}
       <span className="relative inline-flex items-center overflow-hidden px-0.5 leading-none">
-        {digits.map((digit, idx) => {
-          const placeValue = digits.length - 1 - idx;
+        {chars.map((char, idx) => {
+          const placeValue = chars.length - 1 - idx;
+          if (!/\d/.test(char)) {
+            return (
+              <span
+                key={`sep-${placeValue}-${char}`}
+                className="inline-flex h-[1.15em] items-center justify-center"
+              >
+                {char}
+              </span>
+            );
+          }
           return (
             <span
               key={`place-${placeValue}`}
               className="relative inline-flex h-[1.15em] min-w-[0.62em] items-center justify-center overflow-hidden"
             >
               {prefersReducedMotion ? (
-                <span>{digit}</span>
+                <span>{char}</span>
               ) : (
                 <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                   <motion.span
-                    key={`${placeValue}-${digit}`}
+                    key={`${placeValue}-${char}`}
                     custom={direction}
                     variants={digitVariants}
                     initial="enter"
@@ -212,7 +205,7 @@ export function AnimatedCartCounter({
                     }}
                     className="inline-block will-change-transform"
                   >
-                    {digit}
+                    {char}
                   </motion.span>
                 </AnimatePresence>
               )}
@@ -291,12 +284,12 @@ export function AnimatedCartBadge({
       onClick={onClick}
       whileTap={prefersReducedMotion ? undefined : { scale: 0.96 }}
       aria-label={resolvedLabel ? `${resolvedLabel}, ${count} items` : `Shopping ${icon}, ${count} items`}
-      className="group relative inline-flex items-center gap-2.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 whitespace-nowrap shrink-0 cursor-pointer"
+      className="group relative inline-flex items-center gap-2.5 rounded-lg border border-fresh/35 bg-primary-dark px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-fresh/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent whitespace-nowrap shrink-0 cursor-pointer"
     >
       <motion.span animate={iconControls} className="inline-flex items-center">
         {customIcon ?? (
           <IconComponent
-            className="h-4 w-4 text-zinc-200 transition-colors group-hover:text-white"
+            className="h-4 w-4 text-accent transition-colors group-hover:text-white"
             strokeWidth={1.75}
           />
         )}
@@ -311,7 +304,7 @@ export function AnimatedCartBadge({
             animate={{ scale: 1, opacity: 1 }}
             exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 460, damping: 18 }}
-            className="inline-flex min-w-6 items-center justify-center rounded-md bg-blue-600 px-1.5 py-0.5 font-mono text-xs font-semibold text-white"
+            className="inline-flex min-w-6 items-center justify-center rounded-md bg-accent px-1.5 py-0.5 font-mono text-xs font-bold text-primary"
           >
             <AnimatedCartCounter
               value={count}
@@ -319,7 +312,7 @@ export function AnimatedCartBadge({
               damping={damping}
               mass={mass}
               bounceScale={bounceScale}
-              pulseClassName="border-blue-300/70"
+              pulseClassName="border-accent/70"
             />
           </motion.span>
         )}
@@ -367,7 +360,10 @@ export function CartQuantityStepper({
   const holdTimeoutRef = useRef<number | null>(null);
   const didHoldRepeatRef = useRef(false);
   const latestValueRef = useRef(value);
-  latestValueRef.current = value;
+
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
 
   const stopHold = useCallback(() => {
     if (holdTimeoutRef.current !== null) {
@@ -383,12 +379,7 @@ export function CartQuantityStepper({
     };
   }, [stopHold]);
 
-  // Stop repeating immediately if the value reaches min/max while holding
-  useEffect(() => {
-    if (isHolding && (value <= min || value >= max)) {
-      stopHold();
-    }
-  }, [isHolding, value, min, max, stopHold]);
+
 
   // Global pointerup/cancel guard in case button disables mid-hold
   useEffect(() => {
@@ -402,14 +393,7 @@ export function CartQuantityStepper({
     };
   }, [isHolding, stopHold]);
 
-  useEffect(() => {
-    if (!isEditing) return;
-    setDraftValue(String(value));
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    });
-  }, [isEditing, value]);
+
 
   const applyStep = useCallback(
     (deltaSign: 1 | -1, magnitude: number) => {
@@ -552,7 +536,14 @@ export function CartQuantityStepper({
       ) : canEditInline ? (
         <button
           type="button"
-          onClick={() => setIsEditing(true)}
+          onClick={() => {
+            setDraftValue(String(value));
+            setIsEditing(true);
+            requestAnimationFrame(() => {
+              inputRef.current?.focus();
+              inputRef.current?.select();
+            });
+          }}
           title="Click to type quantity"
           aria-label={`Edit ${itemName} quantity, current ${value}`}
           className={`inline-flex items-center justify-center rounded-md px-1 font-mono font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-blue-700 cursor-text ${

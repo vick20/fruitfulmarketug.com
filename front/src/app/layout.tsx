@@ -1,13 +1,9 @@
-
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Appbar from "../components/appbar";
-import MyFooter from "../components/footer";
-import CartProvider from '../contexts/CartContext'
-import StickySearchBar from "../components/StickySearchbar";
-import CartSlideIn from "../components/cart/Cartpage";
-
+import CartProvider from "../contexts/CartContext";
+import { Toaster } from "../components/ui/sonner";
+import StorefrontChrome from "../components/StorefrontChrome";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,32 +15,44 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title:
-    "fruitful market ug | online fresh fruits and vegetables we deliver to your door step",
-  description:
-    "fruitful market ug is an online fresh fruits and vegetables store that delivers to your door step. we offer a wide range of fresh fruits and vegetables at affordable prices. we are committed to providing our customers with the best quality products and services.",
+export const viewport: Viewport = {
+  themeColor: "#0E3725",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export const metadata: Metadata = {
+  title: "Fruitful Market UG | Online Fresh Fruits and Vegetables Delivery in Uganda",
+  description:
+    "Fruitful Market UG is an online fresh fruits and vegetables grocery store delivering to your doorstep in Uganda. Premium quality, affordable prices, and fast delivery.",
+  applicationName: "Fruitful Market UG",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Fruitful UG",
+  },
+  icons: {
+    icon: "/pwa-192x192.png",
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/manifest.webmanifest",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}  antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="min-h-screen ">
+      <body className="min-h-screen bg-background text-foreground">
         <CartProvider>
-        <Appbar />
-
-        {/* 2. Sticky Search Bar: Now a sibling, so it sticks to the top of the screen */}
-        <div className="flex flex-row gap-2 w-full sticky top-0 z-50 text-background px-2 pb-2 pt-3 shadow-md bg-primary backdrop-blur-sm bg-opacity-80">
-          <StickySearchBar />
-        </div>
-        {/* Slide in cart */}
-        <CartSlideIn />
-        
-        <main>{children}</main>
-        <MyFooter />
+          <StorefrontChrome>{children}</StorefrontChrome>
+          <Toaster position="bottom-right" theme="light" richColors />
         </CartProvider>
       </body>
     </html>

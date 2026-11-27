@@ -1,11 +1,24 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    images: {
+  output: "standalone",
+  allowedDevOrigins: [
+    "ais-dev-x5g6rco4nfk7jjsgzpvyrg-675376564649.europe-west3.run.app",
+    "ais-pre-x5g6rco4nfk7jjsgzpvyrg-675376564649.europe-west3.run.app",
+    "*.europe-west3.run.app",
+    "**.run.app",
+    "localhost",
+    "127.0.0.1",
+  ],
+  images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "images.unsplash.com",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
       },
     ],
   },

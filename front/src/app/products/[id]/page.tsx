@@ -1,25 +1,25 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProductCartActions from "@/src/components/product/ProductCartActions";
 import ProductGallery from "@/src/components/product/ProductGallery";
 import type { ProductCardData } from "@/src/components/product/types/product";
-import { getProducts } from "@/src/lib/product/productsProvider";
+import { getProductById } from "@/src/lib/product/productsProvider";
 import { createProductJsonLd } from "@/src/lib/product/product-schema";
 
 type ProductPageProps = {
   params: Promise<{ id: string }>;
 };
-function getProduct(id: string): ProductCardData | undefined {
-  //get test data from the mock data for now, later we will fetch from the database
-  return getProducts(true).at(2);
+async function getProduct(id: string): Promise<ProductCardData | undefined> {
+  return getProductById(id);
 }
 
 export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
   const { id } = await params;
-  const product = getProduct(id);
+  const product = await getProduct(id);
 
   if (!product) {
     return { title: "Product not found | Fruitful Market UG" };
@@ -45,9 +45,23 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductDetailsPage({ params }: ProductPageProps) {
+export default function ProductDetailsPage({ params }: ProductPageProps) {
+  return (
+    <Suspense
+      fallback={
+        <section className="container mx-auto max-w-6xl px-4 py-8 text-text-muted">
+          Loading product...
+        </section>
+      }
+    >
+      <ProductDetailsContent params={params} />
+    </Suspense>
+  );
+}
+
+async function ProductDetailsContent({ params }: ProductPageProps) {
   const { id } = await params;
-  const product = getProduct(id);
+  const product = await getProduct(id);
 
   if (!product) {
     notFound();
@@ -60,9 +74,9 @@ export default async function ProductDetailsPage({ params }: ProductPageProps) {
   return (
     <section
       aria-labelledby="product-page-title"
-      className="container mx-auto max-w-6xl px-4 py-8"
+      className="container mx-auto max-w-6xl px-4 py-5 pb-8 md:py-8 md:pb-12"
     >
-      <nav aria-label="Breadcrumb" className="mb-6 text-sm text-text-muted">
+      <nav aria-label="Breadcrumb" className="mb-4 md:mb-6 text-sm text-text-muted">
         <Link href="/" className="hover:text-primary">
           Home
         </Link>
@@ -75,7 +89,9 @@ export default async function ProductDetailsPage({ params }: ProductPageProps) {
         <span aria-hidden="true" className="px-2">
           /
         </span>
-        <span aria-current="page">{product.name}</span>
+        <span aria-current="page" className="text-text font-medium">
+          {product.name}
+        </span>
       </nav>
 
       <script
@@ -83,63 +99,38 @@ export default async function ProductDetailsPage({ params }: ProductPageProps) {
         dangerouslySetInnerHTML={{ __html: jsonLd }}
       />
 
-      <div className="grid gap-8 md:grid-cols-2 md:gap-12">
-        <ProductGallery productName={product.name} images={product.images} />
+      <div className="grid items-start gap-6 md:grid-cols-2 md:gap-10">
+        <div className="md:sticky md:top-20">
+          <ProductGallery productName={product.name} images={product.images} />
+        </div>
 
-        <div className="space-y-6">
-          {product.categories[0] && (
-            <p className="text-sm font-medium text-text-muted">
-              {product.categories[0].name}
-            </p>
-          )}
+        <div className="space-y-5">
           <div>
+            {product.categories[0] && (
+              <p className="mb-1 text-xs font-medium tracking-wide text-text-muted">
+                {product.categories[0].name}
+              </p>
+            )}
             <h1
               id="product-page-title"
-              className="text-3xl font-bold text-primary md:text-4xl"
+              className="text-2xl font-bold text-primary md:text-4xl text-balance"
             >
               {product.name}
             </h1>
-            {product.description && (
-              <p className="mt-4 leading-relaxed text-text-muted">
-                {product.description}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <h2 className="mb-3 text-lg font-semibold text-primary">
-              Available options
-            </h2>
-            {activeVariants.length > 0 ? (
-              <ul className="space-y-3">
-                {activeVariants.map((variant) => (
-                  <li
-                    key={variant.id}
-                    className="rounded-lg border border-border p-3"
-                  >
-                    <p className="font-medium text-primary">
-                      {variant.attributes.length > 0
-                        ? variant.attributes
-                            .map(
-                              (attribute) =>
-                                `${attribute.name}: ${attribute.value}`,
-                            )
-                            .join(", ")
-                        : variant.sku}
-                    </p>
-                    <p className="mt-1 text-sm text-text-muted">
-                      SKU: {variant.sku} · UGX{" "}
-                      {variant.price.toLocaleString("en-UG")}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-text-muted">No options are currently available.</p>
-            )}
           </div>
 
           <ProductCartActions product={product} variants={activeVariants} />
+
+          {product.description && (
+            <div className="border-t border-border pt-4">
+              <h2 className="mb-1.5 text-sm font-semibold text-primary">
+                About this item
+              </h2>
+              <p className="leading-relaxed text-sm md:text-base text-text-muted">
+                {product.description}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </section>

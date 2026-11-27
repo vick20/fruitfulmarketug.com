@@ -1,6 +1,6 @@
-import {toProductCardData} from '../lib/product/ProductWrapper'
+import {toProductCardData} from '../lib/product/ProductWrapper';
 import { ProductCardData } from '../components/product/types/product';
-export const mockdata:any[] = [
+export const mockdata: Record<string, unknown>[] = [
   {
     "id": "prod-001",
     "name": "Fresh Tomatoes",
@@ -275,8 +275,9 @@ export const mockdata:any[] = [
   }
 ]
 
-export const mockProducts:ProductCardData[] = mockdata.map((product) =>
-  toProductCardData(product)
+export const mockProducts: ProductCardData[] = mockdata.map((product) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  toProductCardData(product as any)
 );
 
 

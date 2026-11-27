@@ -1,39 +1,38 @@
-import { Cart,CartItem, createEmptyCart } from './cart-types';
+import { Cart, createEmptyCart } from './cart-types';
 
 const CART_STORAGE_KEY = "fruitflmarket_cart";
 
 
-interface CartStoreItem {
-    id: string;
-    items: CartItem[];
-    updatedAt: string;
-}
+
 
 //store thecart
-export function storeCart(cart:Cart){
-localStorage.setItem(
-    CART_STORAGE_KEY,
-    JSON.stringify(cart)
-);
-
+export function storeCart(cart: Cart) {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(
+        CART_STORAGE_KEY,
+        JSON.stringify(cart)
+    );
 }
 
 //read the stored cart
 export function readStoredCart(): Cart {
-    const storedCart = localStorage.getItem(
-        CART_STORAGE_KEY
-    );
+    if (typeof window === "undefined") return createEmptyCart();
+    const storedCart = localStorage.getItem(CART_STORAGE_KEY);
 
-    const cart: Cart = storedCart
-        ? JSON.parse(storedCart)
-        : createEmptyCart();
+    let cart: Cart;
+    try {
+        cart = storedCart ? JSON.parse(storedCart) : createEmptyCart();
+    } catch {
+        cart = createEmptyCart();
+    }
 
-    cart.count = cart.items?.reduce(
-        (total, item) => total + item.quantity,
-        0
-    );
+    if (!Array.isArray(cart.items)) {
+        cart = createEmptyCart();
+    }
 
-    cart.subtotal = cart.items?.reduce(
+    cart.count = cart.items.length;
+
+    cart.subtotal = cart.items.reduce(
         (total, item) => total + item.quantity * item.unitPrice,
         0
     );

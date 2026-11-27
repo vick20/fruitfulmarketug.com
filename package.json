@@ -1,6 +1,20 @@
 {
+  "name": "fruitfulmarketug",
+  "private": true,
+  "workspaces": [
+    "front"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=front",
+    "build": "npm run build --workspace=front",
+    "start": "npm run start --workspace=front",
+    "lint": "npm run lint --workspace=front"
+  },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "@types/web-push": "^3.6.4",
     "lucide-react": "^1.70.0",
-    "swiper": "^14.4.0"
+    "swiper": "^14.4.0",
+    "web-push": "^4.0.0"
   }
 }

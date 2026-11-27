@@ -2,7 +2,7 @@
 
 import type { CartItem} from "../../lib/cart/cart-types";
 import Image from "next/image";
-import { CartQuantityStepper } from "./Animatedcart";
+import { AnimatedCartCounter, CartQuantityStepper } from "./Animatedcart";
 import { Trash2 } from "lucide-react";
 import useCart from "@/src/hooks/useCart";
 interface CartItemProps{
@@ -25,8 +25,16 @@ export default function CartItem({ item }: CartItemProps) {
 </div>
         <div className="cart-item-details  flex flex-col justify-start gap-1 w-full">
             <h3 className="cart-item-name font-bold">{item.name}</h3>
-            <p className="cart-item-price">{item.unitPrice.toFixed(2)}</p>
-            <p className="item-total-price text-lg font-bold">Ugx:{totalPrice.toFixed(2)}</p>
+            <p className="cart-item-price">UGX {item.unitPrice.toLocaleString("en-UG")}</p>
+            <p className="item-total-price inline-flex items-center gap-1 text-lg font-bold tabular-nums">
+                <span>UGX</span>
+                <AnimatedCartCounter
+                    value={totalPrice}
+                    formatValue={(val) => val.toLocaleString("en-UG")}
+                    showPulse={false}
+                    ariaLabel={`${item.name} total`}
+                />
+            </p>
         </div>
         <div className="cart-item-quantity flex flex-col justify-end items-end gap-2"> 
             <Trash2 className="cart-item-delete-icon cursor-pointer" color={'red'} onClick={() => removeItem(item.variantId)} />
