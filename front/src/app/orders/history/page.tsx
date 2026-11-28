@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, PackageCheck, ShoppingBag } from "lucide-react";
 import { getStoredOrderHistory, type StoredOrder } from "@/src/lib/orders/order-history";
 import { WHATSAPP_PHONE } from "@/src/lib/config";
 
 export default function OrderHistoryPage() {
-  const [orders] = useState<StoredOrder[]>(() => getStoredOrderHistory());
-  const isLoaded = true;
+  const [orders, setOrders] = useState<StoredOrder[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setOrders(getStoredOrderHistory());
+    setIsLoaded(true);
+  }, []);
 
   return (
     <main className="container mx-auto max-w-3xl px-4 py-8 md:py-12">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Menu,
@@ -32,13 +32,14 @@ export default function AdminHeader({
   onRefresh,
   isRefreshing = false,
 }: AdminHeaderProps) {
-  const [pushStatus, setPushStatus] = useState<"default" | "granted" | "denied">(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      return Notification.permission;
-    }
-    return "default";
-  });
+  const [pushStatus, setPushStatus] = useState<"default" | "granted" | "denied">("default");
   const [isSubscribingPush, setIsSubscribingPush] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushStatus(Notification.permission);
+    }
+  }, []);
 
   const handleRequestPush = async () => {
     if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {

@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  serverExternalPackages: ["web-push"],
   allowedDevOrigins: [
     "ais-dev-x5g6rco4nfk7jjsgzpvyrg-675376564649.europe-west3.run.app",
     "ais-pre-x5g6rco4nfk7jjsgzpvyrg-675376564649.europe-west3.run.app",

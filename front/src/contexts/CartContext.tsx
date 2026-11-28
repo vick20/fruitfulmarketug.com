@@ -1,6 +1,6 @@
 'use client'
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
-import { CartContextType, Cart, CartItem } from "../lib/cart/cart-types";
+import { CartContextType, Cart, CartItem, createEmptyCart } from "../lib/cart/cart-types";
 import { readStoredCart, storeCart } from "../lib/cart/cart-store";
 import { PriceCalculator } from "../lib/cart/price-calculator";
 import Logger from "../utils/Logger";
@@ -13,9 +13,17 @@ export default function CartProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [cart, setCart] = useState<Cart>(() => readStoredCart());
-  const [isReady] = useState<boolean>(true);
+  const [cart, setCart] = useState<Cart>(() => createEmptyCart());
+  const [isReady, setIsReady] = useState<boolean>(false);
   const [Open, setOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const stored = readStoredCart();
+    if (stored && stored.items && stored.items.length > 0) {
+      setCart(stored);
+    }
+    setIsReady(true);
+  }, []);
 
   const count = useMemo(
     () => PriceCalculator.calculateItemCount(cart.items),

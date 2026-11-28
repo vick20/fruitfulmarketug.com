@@ -23,12 +23,13 @@ export default function AdminSettings({
   isSoundEnabled,
   onToggleSound,
 }: AdminSettingsProps) {
-  const [pushPermission, setPushPermission] = useState<"default" | "granted" | "denied">(() => {
+  const [pushPermission, setPushPermission] = useState<"default" | "granted" | "denied">("default");
+
+  useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
-      return Notification.permission;
+      setPushPermission(Notification.permission);
     }
-    return "default";
-  });
+  }, []);
   const [activeSubsCount, setActiveSubsCount] = useState<number>(0);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);

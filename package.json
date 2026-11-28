@@ -11,10 +11,10 @@
     "lint": "npm run lint --workspace=front"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.119.2",
+    "@supabase/supabase-js": "^2.49.1",
     "@types/web-push": "^3.6.4",
-    "lucide-react": "^1.70.0",
+    "lucide-react": "^1.73.0",
     "swiper": "^14.4.0",
-    "web-push": "^4.0.0"
+    "web-push": "^3.6.7"
   }
 }
