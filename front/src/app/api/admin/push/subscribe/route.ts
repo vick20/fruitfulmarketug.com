@@ -4,14 +4,19 @@ import {
   savePushSubscription,
   removePushSubscription,
   getAllPushSubscriptions,
+  checkPushStorageStatus,
   type PushSubscriptionJSON,
 } from "@/src/lib/push/push-store";
 
 export async function GET() {
-  const subscriptions = await getAllPushSubscriptions();
+  const [subscriptions, storageStatus] = await Promise.all([
+    getAllPushSubscriptions(),
+    checkPushStorageStatus(),
+  ]);
   return NextResponse.json({
     publicKey: getVapidPublicKey(),
     activeSubscriptionsCount: subscriptions.length,
+    ...storageStatus,
   });
 }
 
@@ -30,7 +35,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: res.error }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, message: "Subscription registered." });
+    const subscriptions = await getAllPushSubscriptions();
+
+    return NextResponse.json({
+      success: true,
+      message: "Subscription registered.",
+      activeSubscriptionsCount: subscriptions.length,
+      supabasePersisted: res.supabasePersisted,
+      warning: res.warning,
+    });
   } catch {
     return NextResponse.json(
       { error: "Failed to save push subscription." },

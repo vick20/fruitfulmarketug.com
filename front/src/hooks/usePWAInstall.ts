@@ -39,9 +39,11 @@ export function usePWAInstall() {
     window.addEventListener("appinstalled", handleAppInstalled);
 
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch((err) => {
-        console.warn("[PWA] Service worker registration error:", err);
-      });
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .catch((err) => {
+          console.warn("[PWA] Service worker registration error:", err);
+        });
     }
 
     return () => {

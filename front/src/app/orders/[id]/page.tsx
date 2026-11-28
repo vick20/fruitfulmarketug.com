@@ -72,9 +72,30 @@ export async function generateMetadata({
   params,
 }: OrderPageProps): Promise<Metadata> {
   const { id } = await params;
+  const title = `Order #${id.slice(0, 8)} | Fruitful Market UG`;
+  const description = `View order confirmation and details for Fruitful Market UG.`;
   return {
-    title: `Order #${id.slice(0, 8)} | Fruitful Market UG`,
-    description: `View order confirmation and details for Fruitful Market UG.`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: [
+        {
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: "Fruitful Market UG Order Confirmation",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.png"],
+    },
   };
 }
 

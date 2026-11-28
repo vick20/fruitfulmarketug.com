@@ -13,6 +13,7 @@ import {
   Radio,
 } from "lucide-react";
 import { playOrderChime } from "./AdminAudioAlert";
+import { subscribeAndSyncAdminPush } from "@/src/lib/push/client-push";
 import { toast } from "sonner";
 
 interface AdminHeaderProps {
@@ -33,62 +34,36 @@ export default function AdminHeader({
   isRefreshing = false,
 }: AdminHeaderProps) {
   const [pushStatus, setPushStatus] = useState<"default" | "granted" | "denied">("default");
+  const [isPushSubscribed, setIsPushSubscribed] = useState(false);
   const [isSubscribingPush, setIsSubscribingPush] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       setPushStatus(Notification.permission);
+      if (Notification.permission === "granted") {
+        void subscribeAndSyncAdminPush({ requestPermission: false })
+          .then((res) => {
+            setPushStatus(res.permission);
+            setIsPushSubscribed(res.subscribed);
+          })
+          .catch(() => {});
+      }
     }
   }, []);
 
   const handleRequestPush = async () => {
-    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
-      toast.error("Push notifications are not supported on this browser.");
-      return;
-    }
-
-    if (Notification.permission === "denied") {
-      toast.error("Push notifications are blocked in browser settings. Please allow notifications in site settings.");
-      return;
-    }
-
     setIsSubscribingPush(true);
     try {
-      const permission = await Notification.requestPermission();
-      setPushStatus(permission);
+      const res = await subscribeAndSyncAdminPush({ requestPermission: true });
+      setPushStatus(res.permission);
+      setIsPushSubscribed(res.subscribed);
 
-      if (permission === "granted") {
-        const reg = await navigator.serviceWorker.ready;
-        // Fetch VAPID public key
-        const keyRes = await fetch("/api/admin/push/subscribe");
-        const keyData = await keyRes.json();
-        const publicKey = keyData.publicKey;
-
-        if (!publicKey) {
-          throw new Error("Missing public key");
-        }
-
-        // Convert base64url to Uint8Array
-        const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
-        const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-
-        const subscription = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: outputArray,
-        });
-
-        await fetch("/api/admin/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subscription }),
-        });
-
-        toast.success("Push notifications enabled! You will receive alerts when new orders arrive.");
+      if (res.ok && res.subscribed) {
+        toast.success(
+          "Push notifications enabled! You will receive system alerts even when this tab is closed or in the background."
+        );
+      } else if (res.error) {
+        toast.error(res.error);
       } else {
         toast.info("Push notification permission was dismissed.");
       }
@@ -181,18 +156,18 @@ export default function AdminHeader({
           onClick={handleRequestPush}
           disabled={isSubscribingPush}
           title={
-            pushStatus === "granted"
+            pushStatus === "granted" && isPushSubscribed
               ? "Push notifications are active on this device"
               : "Click to enable browser push notifications"
           }
           aria-label="Toggle push notifications"
           className={`flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition cursor-pointer ${
-            pushStatus === "granted"
+            pushStatus === "granted" && isPushSubscribed
               ? "border-primary/20 bg-primary/[0.06] text-primary"
               : "border-border bg-background text-text-muted hover:border-primary/40 hover:text-text"
           }`}
         >
-          {pushStatus === "granted" ? (
+          {pushStatus === "granted" && isPushSubscribed ? (
             <>
               <Bell className="h-4 w-4 text-primary fill-accent" />
               <span className="hidden sm:inline">Push Active</span>

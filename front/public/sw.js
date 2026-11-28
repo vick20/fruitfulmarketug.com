@@ -1,5 +1,5 @@
 // Fruitful Market UG - Service Worker with Caching & Web Push Notifications
-const CACHE_NAME = 'fruitful-market-v1';
+const CACHE_NAME = 'fruitful-market-v2';
 const OFFLINE_URL = '/offline.html';
 
 const STATIC_PRECACHE = [
@@ -124,13 +124,20 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       const parsed = event.data.json();
-      data = { ...data, ...parsed };
+      if (parsed && typeof parsed === 'object') {
+        data = { ...data, ...parsed };
+      }
     } catch {
-      data.body = event.data.text() || data.body;
+      try {
+        data.body = event.data.text() || data.body;
+      } catch {
+        // Keep default body
+      }
     }
   }
 
   const title = data.title || 'Fruitful Market UG - New Order!';
+  const targetUrl = data.url || (data.orderId ? `/admin/orders/${data.orderId}` : '/admin/orders');
   const options = {
     body: data.body,
     icon: '/pwa-192x192.png',
@@ -140,7 +147,7 @@ self.addEventListener('push', (event) => {
     requireInteraction: true,
     vibrate: [200, 100, 200, 100, 200],
     data: {
-      url: data.url || (data.orderId ? `/admin/orders/${data.orderId}` : '/admin/orders'),
+      url: targetUrl,
       orderId: data.orderId,
     },
     actions: [
@@ -149,7 +156,16 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(() => {
+      // Fallback with minimal options for browsers/OSes that reject actions/vibrate/requireInteraction
+      return self.registration.showNotification(title, {
+        body: options.body,
+        icon: '/pwa-192x192.png',
+        data: options.data,
+      });
+    })
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {
@@ -159,23 +175,32 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  const targetUrl = event.notification.data?.url || '/admin/orders';
+  const rawUrl = event.notification.data?.url || '/admin/orders';
+  const fullUrl = new URL(rawUrl, self.location.origin).href;
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If an existing admin tab is open, focus it and navigate
+    (async () => {
+      const clientList = await clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+
       for (const client of clientList) {
-        if (client.url.includes('/admin') && 'focus' in client) {
+        if (client.url.startsWith(self.location.origin) && client.url.includes('/admin') && 'focus' in client) {
           if ('navigate' in client) {
-            client.navigate(targetUrl);
+            try {
+              await client.navigate(fullUrl);
+            } catch {
+              // Ignore navigation restriction
+            }
           }
           return client.focus();
         }
       }
-      // Otherwise open a new window
+
       if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
+        return clients.openWindow(fullUrl);
       }
-    })
+    })()
   );
 });

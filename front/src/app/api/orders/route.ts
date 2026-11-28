@@ -245,12 +245,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Broadcast Web Push notification to all subscribed admin devices
-  void sendNewOrderPushNotification({
-    id: createdOrder.id,
-    customer_name: customerName,
-    total_amount: totalAmount,
-  });
+  // Broadcast Web Push notification to all subscribed admin devices before returning response
+  try {
+    await sendNewOrderPushNotification({
+      id: createdOrder.id,
+      customer_name: customerName,
+      total_amount: totalAmount,
+    });
+  } catch (err) {
+    console.warn("[Orders API] Push notification broadcast error:", err);
+  }
 
   return NextResponse.json(
     {

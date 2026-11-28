@@ -11,6 +11,7 @@ import {
   Send,
 } from "lucide-react";
 import { playOrderChime } from "./AdminAudioAlert";
+import { subscribeAndSyncAdminPush } from "@/src/lib/push/client-push";
 import { toast } from "sonner";
 import { PWAInstallButton } from "../pwa/PWAInstallButton";
 
@@ -24,12 +25,9 @@ export default function AdminSettings({
   onToggleSound,
 }: AdminSettingsProps) {
   const [pushPermission, setPushPermission] = useState<"default" | "granted" | "denied">("default");
+  const [isDeviceSubscribed, setIsDeviceSubscribed] = useState(false);
+  const [supabaseTableReady, setSupabaseTableReady] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setPushPermission(Notification.permission);
-    }
-  }, []);
   const [activeSubsCount, setActiveSubsCount] = useState<number>(0);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
@@ -37,10 +35,13 @@ export default function AdminSettings({
 
   const fetchSubscriptionInfo = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/push/subscribe");
+      const res = await fetch("/api/admin/push/subscribe", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setActiveSubsCount(data.activeSubscriptionsCount || 0);
+        setSupabaseTableReady(
+          typeof data.supabaseTableReady === "boolean" ? data.supabaseTableReady : null
+        );
       }
     } catch {
       // Ignore
@@ -48,54 +49,33 @@ export default function AdminSettings({
   }, []);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushPermission(Notification.permission);
+      if (Notification.permission === "granted") {
+        void subscribeAndSyncAdminPush({ requestPermission: false })
+          .then((res) => {
+            setPushPermission(res.permission);
+            setIsDeviceSubscribed(res.subscribed);
+            fetchSubscriptionInfo();
+          })
+          .catch(() => {});
+      }
+    }
     fetchSubscriptionInfo();
   }, [fetchSubscriptionInfo]);
 
   const handleEnablePush = async () => {
-    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
-      toast.error("Push notifications are not supported on this device/browser.");
-      return;
-    }
-
-    if (Notification.permission === "denied") {
-      toast.error("Notifications are blocked in your browser site permissions. Please allow them in your URL bar settings.");
-      return;
-    }
-
     setIsSubscribing(true);
     try {
-      const permission = await Notification.requestPermission();
-      setPushPermission(permission);
+      const res = await subscribeAndSyncAdminPush({ requestPermission: true });
+      setPushPermission(res.permission);
+      setIsDeviceSubscribed(res.subscribed);
 
-      if (permission === "granted") {
-        const reg = await navigator.serviceWorker.ready;
-        const keyRes = await fetch("/api/admin/push/subscribe");
-        const keyData = await keyRes.json();
-        const publicKey = keyData.publicKey;
-
-        if (!publicKey) throw new Error("Could not retrieve VAPID key");
-
-        const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
-        const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-
-        const subscription = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: outputArray,
-        });
-
-        await fetch("/api/admin/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subscription }),
-        });
-
-        toast.success("Push notifications enabled! This device will be notified on new orders.");
-        fetchSubscriptionInfo();
+      if (res.ok && res.subscribed) {
+        toast.success("Push notifications enabled! This device will be notified even when the app is closed.");
+        await fetchSubscriptionInfo();
+      } else if (res.error) {
+        toast.error(res.error);
       } else {
         toast.info("Push notification permission was dismissed.");
       }
@@ -182,8 +162,10 @@ ALTER TABLE admin_push_subscriptions ENABLE ROW LEVEL SECURITY;`;
           <div className="rounded-xl border border-border bg-background p-4 space-y-2">
             <span className="text-xs font-semibold text-text-muted">Device Status</span>
             <p className="text-xs text-text">
-              {pushPermission === "granted"
-                ? "This browser is subscribed to order push notifications."
+              {pushPermission === "granted" && isDeviceSubscribed
+                ? "This browser has an active background push subscription synced with the server."
+                : pushPermission === "granted"
+                ? "Permission granted, click below to sync this device's push subscription."
                 : "This browser has not yet enabled push notifications."}
             </p>
             <button
@@ -193,7 +175,13 @@ ALTER TABLE admin_push_subscriptions ENABLE ROW LEVEL SECURITY;`;
               className="mt-2 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-primary-dark disabled:opacity-50 cursor-pointer"
             >
               <Bell className="h-3.5 w-3.5 text-accent" />
-              <span>{isSubscribing ? "Registering..." : "Enable Push on this Device"}</span>
+              <span>
+                {isSubscribing
+                  ? "Registering..."
+                  : pushPermission === "granted" && isDeviceSubscribed
+                  ? "Re-sync Device Push"
+                  : "Enable Push on this Device"}
+              </span>
             </button>
           </div>
 
@@ -205,6 +193,11 @@ ALTER TABLE admin_push_subscriptions ENABLE ROW LEVEL SECURITY;`;
               </span>
               <span className="text-xs text-text-muted">active device subscription(s)</span>
             </div>
+            {supabaseTableReady === false && (
+              <p className="text-[11px] font-medium text-amber-700">
+                Using server cache fallback. Run the SQL below in Supabase to persist across serverless restarts.
+              </p>
+            )}
             <button
               type="button"
               onClick={handleSendTestPush}
